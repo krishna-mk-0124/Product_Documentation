@@ -13,6 +13,8 @@ This repository contains a comprehensive breakdown of the TrojAI AI Security Pla
 | [`trojai_product_flow_animation.html`](trojai_product_flow_animation.html) | Self-contained, downloadable HTML page with step-by-step CSS/JS animation of the complete TrojAI product flow — from input sources through DETECT and DEFEND to secure output |
 | [`trojai_services_explanation.md`](trojai_services_explanation.md) | Detailed written explanation of every TrojAI service, module, and sub-feature — including DETECT, DEFEND, platform microservices, firewall rule taxonomy, and deployment architecture |
 | [`trojai_rules_service_go_vs_python.md`](trojai_rules_service_go_vs_python.md) | In-depth technical comparison of `troj-rules-service` (Go) vs `troj-python-rules-service` (Python), including exact rule division, latency/memory profiles, and execution examples |
+| [`trojai_1.x_architecture_and_flow.md`](trojai_1.x_architecture_and_flow.md) | Detailed architectural breakdown of TrojAI 1.x (MongoDB document storage, monolithic backend, flat ruleset, Triton integration, and evolution to 2.x) |
+| [`trojai_v2_20_defend_end_to_end_flow.md`](trojai_v2_20_defend_end_to_end_flow.md) | Comprehensive step-by-step DEFEND flow in v2.20 with sequence diagram, payload excerpts, and database interactions across all microservices |
 
 ---
 
