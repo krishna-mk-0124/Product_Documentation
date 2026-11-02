@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrojAI — Complete Product Flow Animation</title>
+<style>
+  /* ── Reset & Base ────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: #0a0e17;
+    color: #e0e6ed;
+    overflow-x: hidden;
+  }
+  a { color: #16a341; text-decoration: none; }
+
+  /* ── Hero ─────────────────────────────────────── */
+  .hero {
+    text-align: center;
+    padding: 60px 20px 30px;
+    background: linear-gradient(180deg, #101828 0%, #0a0e17 100%);
+  }
+  .hero h1 {
+    font-size: 2.6rem;
+    background: linear-gradient(135deg, #16a341, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  .hero p { color: #94a3b8; max-width: 720px; margin: 0 auto; font-size: 1.05rem; line-height: 1.6; }
+
+  /* ── Controls ─────────────────────────────────── */
+  .controls {
+    display: flex; justify-content: center; gap: 12px;
+    padding: 18px 20px 10px;
+  }
+  .controls button {
+    padding: 10px 28px; border: none; border-radius: 8px;
+    font-size: .95rem; cursor: pointer; font-weight: 600;
+    transition: all .25s;
+  }
+  #playBtn   { background: #16a341; color: #fff; }
+  #playBtn:hover { background: #12893a; }
+  #resetBtn  { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+  #resetBtn:hover { background: #334155; color: #fff; }
+  .speed-label { color: #64748b; font-size: .85rem; align-self: center; margin-left: 10px; }
+  #speedRange { width: 100px; accent-color: #16a341; align-self: center; }
+
+  /* ── Flow Canvas ─────────────────────────────── */
+  .flow-wrapper {
+    max-width: 1200px; margin: 20px auto; padding: 0 20px;
+    position: relative;
+  }
+  .flow-row {
+    display: flex; align-items: stretch; justify-content: center;
+    gap: 0; flex-wrap: nowrap; position: relative; min-height: 150px;
+  }
+  .flow-row.vertical { flex-direction: column; align-items: center; }
+
+  /* Arrow connectors */
+  .arrow-right, .arrow-down {
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .arrow-right { width: 54px; }
+  .arrow-right svg, .arrow-down svg { opacity: .35; transition: opacity .6s; }
+  .arrow-right.lit svg, .arrow-down.lit svg { opacity: 1; }
+  .arrow-down { height: 48px; width: 54px; margin: 0 auto; }
+
+  /* ── Node ─────────────────────────────────────── */
+  .node {
+    background: #131b2e;
+    border: 1px solid #1e293b;
+    border-radius: 14px;
+    padding: 18px 20px;
+    min-width: 170px; max-width: 240px;
+    text-align: center;
+    opacity: .3;
+    transform: scale(.92);
+    transition: all .6s cubic-bezier(.4,0,.2,1);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .node.active {
+    opacity: 1; transform: scale(1);
+    border-color: #16a341;
+    box-shadow: 0 0 24px rgba(22,163,65,.25);
+  }
+  .node.done {
+    opacity: .85; transform: scale(1);
+    border-color: #334155;
+    box-shadow: none;
+  }
+  .node .icon { font-size: 2rem; margin-bottom: 6px; }
+  .node h3 { font-size: .95rem; color: #f1f5f9; margin-bottom: 4px; }
+  .node p  { font-size: .75rem; color: #64748b; line-height: 1.4; }
+
+  /* ── Phase Banners ───────────────────────────── */
+  .phase-banner {
+    text-align: center; margin: 32px auto 10px;
+    font-size: .8rem; text-transform: uppercase; letter-spacing: 2px;
+    color: #475569;
+    opacity: 0; transition: opacity .5s;
+  }
+  .phase-banner.show { opacity: 1; color: #16a341; }
+  .phase-banner .badge {
+    display: inline-block; padding: 4px 16px; border-radius: 20px;
+    background: #16a34115; border: 1px solid #16a34133;
+  }
+
+  /* ── Detailed Description Panel ──────────────── */
+  .desc-panel {
+    max-width: 860px; margin: 10px auto 0; padding: 20px 28px;
+    background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+    min-height: 80px; transition: all .5s;
+  }
+  .desc-panel h4 { color: #34d399; margin-bottom: 6px; font-size: 1rem; }
+  .desc-panel p  { color: #94a3b8; font-size: .9rem; line-height: 1.65; }
+
+  /* ── Step indicator ──────────────────────────── */
+  .step-indicator {
+    text-align: center; padding: 16px 0 0;
+    color: #475569; font-size: .82rem;
+  }
+
+  /* ── Services Section ────────────────────────── */
+  .services-section {
+    max-width: 1100px; margin: 50px auto 20px; padding: 0 20px;
+  }
+  .services-section h2 {
+    text-align: center; font-size: 1.8rem; margin-bottom: 30px;
+    background: linear-gradient(135deg, #16a341, #34d399);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .svc-card {
+    background: #111827; border: 1px solid #1e293b; border-radius: 14px;
+    padding: 28px 30px; margin-bottom: 22px;
+    transition: border-color .3s;
+  }
+  .svc-card:hover { border-color: #16a34155; }
+  .svc-card h3 { color: #34d399; font-size: 1.15rem; margin-bottom: 10px; }
+  .svc-card h4 { color: #94a3b8; font-size: .95rem; margin: 14px 0 6px; }
+  .svc-card p,
+  .svc-card li { color: #cbd5e1; font-size: .9rem; line-height: 1.7; }
+  .svc-card ul { padding-left: 20px; }
+  .svc-card ul li { margin-bottom: 4px; }
+
+  .sub-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px; margin-top: 14px;
+  }
+  .sub-item {
+    background: #0d1321; border: 1px solid #1e293b; border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .sub-item h5 { color: #16a341; font-size: .9rem; margin-bottom: 4px; }
+  .sub-item p  { color: #94a3b8; font-size: .82rem; line-height: 1.55; }
+
+  footer {
+    text-align: center; padding: 40px 20px;
+    color: #334155; font-size: .8rem;
+  }
+
+  /* ── Pulse animation for active node ─────────── */
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(22,163,65,.45); }
+    70%  { box-shadow: 0 0 0 12px rgba(22,163,65,0); }
+    100% { box-shadow: 0 0 0 0 rgba(22,163,65,0); }
+  }
+  .node.active { animation: pulse-ring 2s infinite; }
+
+  /* ── Particle canvas ─────────────────────────── */
+  #particleBg {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: -1;
+  }
+
+  @media (max-width: 780px) {
+    .flow-row { flex-wrap: wrap; }
+    .node { max-width: 160px; min-width: 120px; padding: 12px 10px; }
+    .arrow-right { width: 32px; }
+    .hero h1 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="particleBg"></canvas>
+
+<!-- ═══════════════════  HERO  ═══════════════════ -->
+<section class="hero">
+  <h1>🛡️ TrojAI — The AI Security Platform</h1>
+  <p>End-to-end risk management, security &amp; alignment for machine-learning models.<br>
+     Explore the complete product flow — from pre-deployment red-teaming to real-time firewall protection.</p>
+</section>
+
+<!-- ═══════════  CONTROLS  ═══════════════════════ -->
+<div class="controls">
+  <button id="playBtn" onclick="startAnimation()">▶ Play Flow</button>
+  <button id="resetBtn" onclick="resetAnimation()">↺ Reset</button>
+  <span class="speed-label">Speed</span>
+  <input type="range" id="speedRange" min="500" max="3000" value="1600" step="100">
+</div>
+<div class="step-indicator" id="stepLabel">Click <strong>Play Flow</strong> to begin</div>
+
+<!-- ═══════════  FLOW DIAGRAM  ═══════════════════ -->
+<div class="flow-wrapper">
+
+  <!-- ── PHASE 1 : INPUTS ───────────────────────── -->
+  <div class="phase-banner" id="phase1"><span class="badge">Phase 1 — Input Sources</span></div>
+  <div class="flow-row" id="row1">
+    <div class="node" id="n-user">
+      <div class="icon">👤</div>
+      <h3>User / App</h3>
+      <p>End-user prompt or application API call</p>
+    </div>
+    <div class="arrow-right" id="a1">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-dataset">
+      <div class="icon">📊</div>
+      <h3>Dataset Registry</h3>
+      <p>Curated training &amp; evaluation datasets</p>
+    </div>
+    <div class="arrow-right" id="a2">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-model">
+      <div class="icon">🤖</div>
+      <h3>Model Registry</h3>
+      <p>LLMs, tabular, NLP models under management</p>
+    </div>
+  </div>
+
+  <!-- ── Arrow Down ─────────────────────────────── -->
+  <div class="arrow-down" id="a3">
+    <svg width="20" height="36"><polyline points="10,0 10,28 4,22" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="10,28 16,22" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+  </div>
+
+  <!-- ── PHASE 2 : TROJAI DETECT ────────────────── -->
+  <div class="phase-banner" id="phase2"><span class="badge">Phase 2 — TrojAI DETECT (Pre-Deployment)</span></div>
+  <div class="flow-row" id="row2">
+    <div class="node" id="n-pentest">
+      <div class="icon">🔴</div>
+      <h3>Red-Team Pentesting</h3>
+      <p>Automated adversarial attack campaigns against LLMs</p>
+    </div>
+    <div class="arrow-right" id="a4">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-attacks">
+      <div class="icon">⚔️</div>
+      <h3>Attack Libraries &amp; Manipulations</h3>
+      <p>Standard + custom attacks, character/word perturbations</p>
+    </div>
+    <div class="arrow-right" id="a5">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-evaluators">
+      <div class="icon">📋</div>
+      <h3>Output Evaluators</h3>
+      <p>Judge model responses for safety, correctness &amp; alignment</p>
+    </div>
+    <div class="arrow-right" id="a6">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-integrity">
+      <div class="icon">✅</div>
+      <h3>Integrity &amp; Risk Audit</h3>
+      <p>Robustness, bias, security, performance checks</p>
+    </div>
+  </div>
+
+  <!-- ── Arrow Down ─────────────────────────────── -->
+  <div class="arrow-down" id="a7">
+    <svg width="20" height="36"><polyline points="10,0 10,28 4,22" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="10,28 16,22" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+  </div>
+
+  <!-- ── PHASE 3 : TROJAI DEFEND ────────────────── -->
+  <div class="phase-banner" id="phase3"><span class="badge">Phase 3 — TrojAI DEFEND (Runtime Protection)</span></div>
+  <div class="flow-row" id="row3">
+    <div class="node" id="n-policy">
+      <div class="icon">📜</div>
+      <h3>Firewall Policy</h3>
+      <p>Top-level object: Client-ID routing, ordered rule groups</p>
+    </div>
+    <div class="arrow-right" id="a8">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-rulegroup">
+      <div class="icon">🔧</div>
+      <h3>Rule Groups</h3>
+      <p>Reusable bundles: prompt injection, PII, content moderation</p>
+    </div>
+    <div class="arrow-right" id="a9">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-rules">
+      <div class="icon">🛡️</div>
+      <h3>Rules Engine</h3>
+      <p>TrojGuard, Governance, PII, Pattern, Code detection</p>
+    </div>
+  </div>
+
+  <!-- ── Arrow Down ─────────────────────────────── -->
+  <div class="arrow-down" id="a10">
+    <svg width="20" height="36"><polyline points="10,0 10,28 4,22" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="10,28 16,22" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+  </div>
+
+  <!-- ── PHASE 4 : ACTIONS & MONITOR ────────────── -->
+  <div class="phase-banner" id="phase4"><span class="badge">Phase 4 — Action &amp; Monitoring</span></div>
+  <div class="flow-row" id="row4">
+    <div class="node" id="n-action">
+      <div class="icon">⚡</div>
+      <h3>Action Decision</h3>
+      <p>PASS · FLAG · BLOCK · REDACT</p>
+    </div>
+    <div class="arrow-right" id="a11">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-explorer">
+      <div class="icon">🔍</div>
+      <h3>Firewall Explorer</h3>
+      <p>Dashboard to review, filter &amp; analyze all events</p>
+    </div>
+    <div class="arrow-right" id="a12">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-extension">
+      <div class="icon">🌐</div>
+      <h3>Browser Extension</h3>
+      <p>LLM Monitor for end-user protection in the browser</p>
+    </div>
+    <div class="arrow-right" id="a13">
+      <svg width="40" height="20"><polyline points="0,10 30,10 24,4" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="30,10 24,16" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+    </div>
+    <div class="node" id="n-metrics">
+      <div class="icon">📈</div>
+      <h3>Metrics &amp; Prometheus</h3>
+      <p>Observability, alerting &amp; continuous monitoring</p>
+    </div>
+  </div>
+
+  <!-- ── Arrow Down ─────────────────────────────── -->
+  <div class="arrow-down" id="a14">
+    <svg width="20" height="36"><polyline points="10,0 10,28 4,22" fill="none" stroke="#16a341" stroke-width="2"/><polyline points="10,28 16,22" fill="none" stroke="#16a341" stroke-width="2"/></svg>
+  </div>
+
+  <!-- ── PHASE 5 : OUTPUT ───────────────────────── -->
+  <div class="phase-banner" id="phase5"><span class="badge">Phase 5 — Secure Output</span></div>
+  <div class="flow-row" id="row5">
+    <div class="node" id="n-output" style="max-width:340px">
+      <div class="icon">✅</div>
+      <h3>Safe, Compliant Response</h3>
+      <p>Verified response returned to the user / application — free from injection, PII leaks, harmful content, and policy violations</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════  DESCRIPTION PANEL  ══════════════ -->
+<div class="desc-panel" id="descPanel">
+  <h4 id="descTitle">TrojAI Product Flow</h4>
+  <p id="descBody">This animated diagram shows how TrojAI protects AI systems across the entire lifecycle — from pre-deployment red-teaming with <strong>TrojAI DETECT</strong> to real-time runtime protection with <strong>TrojAI DEFEND</strong>. Press <strong>Play</strong> to walk through each step.</p>
+</div>
+
+<!-- ═══════════  SERVICES DEEP-DIVE  ════════════ -->
+<section class="services-section">
+  <h2>🔎 Detailed Service Breakdown</h2>
+
+  <!-- ── DETECT ──────────────────────────────────── -->
+  <div class="svc-card">
+    <h3>🔴 TrojAI DETECT — Pre-Deployment Red Teaming &amp; Risk Audit</h3>
+    <p>TrojAI DETECT is the <strong>pre-deployment testing engine</strong>. Analogous to penetration testing in traditional software, DETECT subjects your ML models to a battery of adversarial attacks, integrity checks, and risk audits <em>before</em> they reach production. It covers <strong>Generative AI (LLMs)</strong>, <strong>NLP</strong>, and <strong>Tabular</strong> models.</p>
+
+    <div class="sub-grid">
+      <div class="sub-item">
+        <h5>📊 Dataset Registry</h5>
+        <p>Central catalog of curated evaluation and training datasets used for pentest campaigns and integrity audits. Supports tabular and NLP data formats with detailed configuration.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🤖 Model Registry</h5>
+        <p>Stores and manages all ML models under assessment — LLMs, NLP classifiers, tabular classifiers. Wraps models uniformly so the DETECT engine can query them.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🔴 LLM Pentesting</h5>
+        <p>Automated adversarial testing campaigns against generative models. Configures attack libraries, manipulations, and output evaluators to systematically find jailbreaks and safety failures.</p>
+      </div>
+      <div class="sub-item">
+        <h5>⚔️ Attack Libraries</h5>
+        <p>Extensive library of standard and custom attacks: character-based, word-based perturbations for NLP; tabular corruptions; and prompt-injection / jailbreak templates for LLMs.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🔀 Manipulations</h5>
+        <p>Optional text transformations applied on top of attack prompts — misspelling, encoding changes, language translation — to increase attack coverage and test filter bypass.</p>
+      </div>
+      <div class="sub-item">
+        <h5>📋 Output Evaluators</h5>
+        <p>Automated judges that score model responses for safety, correctness, and alignment. Support LLM-as-judge and classifier-based evaluation to quantify red-team results.</p>
+      </div>
+      <div class="sub-item">
+        <h5>✅ Integrity &amp; Risk Audit</h5>
+        <p>A series of default and custom checks grouped into categories — <em>Robustness</em>, <em>Explainability/Bias</em>, <em>Security/Privacy</em>, <em>Performance/Methodology</em> — ensuring data-science best practices and responsible AI standards.</p>
+      </div>
+      <div class="sub-item">
+        <h5>📝 Testing Configuration &amp; SDK</h5>
+        <p>JSON-driven configuration for datasets, models, attacks, and integrity checks. The TrojAI SDK provides a Python interface for programmatic evaluation runs and CI/CD integration.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DEFEND ──────────────────────────────────── -->
+  <div class="svc-card">
+    <h3>🛡️ TrojAI DEFEND — Runtime Firewall &amp; Protection</h3>
+    <p>TrojAI DEFEND is the <strong>real-time AI firewall</strong> — a scalable Kubernetes deployment (written in GoLang) that sits between users and your LLMs. It intercepts every request and response, evaluates them against configured <strong>Policies → Rule Groups → Rules</strong>, and takes action: PASS, FLAG, BLOCK, or REDACT.</p>
+
+    <div class="sub-grid">
+      <div class="sub-item">
+        <h5>📜 Firewall Policies</h5>
+        <p>Top-level objects owning a <code>Client ID</code> that routes traffic. Each Policy contains an <strong>ordered list of Rule Groups</strong> and proxy settings (block message, model target, type: Standard / MCP / OpenAI Compliance).</p>
+      </div>
+      <div class="sub-item">
+        <h5>🔧 Rule Groups</h5>
+        <p>Reusable bundles of rules. One Rule Group can appear in many Policies — edit once, apply everywhere. Example: a "Baseline Security" group with prompt injection + PII detection, shared across all use cases.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🎯 Prompt Injection Detection</h5>
+        <p>Fast classifier-based model that scores inputs for injection attempts. Configurable confidence threshold (default 60%). Blocks adversarial prompts before they reach the model.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🔒 PII Detection (5 variants)</h5>
+        <p><strong>Basic</strong> (regex), <strong>With Context</strong> (NER + contextual scoring), <strong>Scoring Pipeline</strong> (regex → format validation → context scoring), <strong>Neural</strong> (deep-learning sequence labeling), and <strong>Pattern Matching</strong> (custom regex). All support redaction and per-entity configuration.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🤖 TrojGuard Security LLM</h5>
+        <p>Purpose-built security LLM evaluating 12 harm categories in a single call: Prompt Injection, Violent/Non-Violent Crimes, Sex Crimes, Child Exploitation, Specialized Advice, Hate, Self-Harm, Sexual Content, Indiscriminate Weapons, IP, Privacy.</p>
+      </div>
+      <div class="sub-item">
+        <h5>📏 Governance (Trooper Model)</h5>
+        <p>Fine-tuned guardrails model accepting natural-language policy descriptions. 13 built-in protections (Illicit Activities, Prompt Security, PII, Violence, Hate, Misinformation…) plus unlimited custom policies. Chain-of-thought reasoning explains blocks.</p>
+      </div>
+      <div class="sub-item">
+        <h5>⚠️ Content Moderation &amp; External</h5>
+        <p><strong>Harmful Output Detector</strong> (fast classifier, 5 harm categories), <strong>Azure Content Safety</strong>, <strong>BYO-ML Classifier</strong>, <strong>BYO-LLM</strong> (bring your own moderation LLM with custom payload/response templates).</p>
+      </div>
+      <div class="sub-item">
+        <h5>🔍 Pattern &amp; Code Rules</h5>
+        <p>Suspicious Character Count, Repetition, Language, Misspelling, Custom Blocklist, Base64 Encoding, Source Code Detection, Secret Detection, Suspicious Pattern Monitor, Malicious &amp; Insecure Code Detector, System Prompt Leakage.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MONITORING ──────────────────────────────── -->
+  <div class="svc-card">
+    <h3>📈 Monitoring, Exploration &amp; Browser Extension</h3>
+    <p>After the firewall takes action, TrojAI provides rich observability and end-user tools.</p>
+    <div class="sub-grid">
+      <div class="sub-item">
+        <h5>🔍 Firewall Explorer</h5>
+        <p>Centralized dashboard to review, filter, and analyze all firewall events. Filter by action (PASS/FLAG/BLOCK/ERROR), time, policy, rule group. Historical event data remains queryable.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🌐 LLM Monitor (Browser Extension)</h5>
+        <p>Chromium browser extension that applies firewall protection directly in the browser for users interacting with LLMs. Supports OIDC authentication and configurable rulesets.</p>
+      </div>
+      <div class="sub-item">
+        <h5>📊 Prometheus Metrics</h5>
+        <p>The firewall exposes Prometheus-compatible metrics for integration with Grafana, PagerDuty, and other observability platforms. Enables alerting on block rates, latency, and error spikes.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🔌 Firewall Proxy API</h5>
+        <p>RESTful API endpoints for programmatic integration. Supports proxying to any LLM backend, with full header-based routing via <code>x-eag-clientid</code>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DEPLOYMENT ──────────────────────────────── -->
+  <div class="svc-card">
+    <h3>☁️ Deployment &amp; Architecture</h3>
+    <p>TrojAI supports flexible deployment models to fit any enterprise environment.</p>
+    <div class="sub-grid">
+      <div class="sub-item">
+        <h5>☁️ TrojAI Cloud</h5>
+        <p>Fully hosted SaaS version — instant access with no infrastructure management. Ideal for teams wanting to get started quickly.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🏢 TrojAI Enterprise</h5>
+        <p>Self-hosted on your Kubernetes cluster. Deploy on AWS, GCP, Azure, or custom Helm charts. Includes Helm values reference and architecture documentation.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🤖 TrojGuard LLM Deployment</h5>
+        <p>Dedicated deployment guide for the TrojGuard Security LLM via NVIDIA Triton Inference Server. Includes GPU setup, model loading, and AWS walkthrough.</p>
+      </div>
+      <div class="sub-item">
+        <h5>🔌 API &amp; SDK</h5>
+        <p>Full REST API documentation for platform automation. Python SDK for programmatic evaluation runs, CI/CD pipeline integration, and custom workflow orchestration.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>TrojAI Product Flow Animation — Generated from <a href="https://docs.troj.ai/" target="_blank">docs.troj.ai</a> documentation (v2.20.0)</p>
+</footer>
+
+<!-- ═══════════  ANIMATION LOGIC  ═══════════════ -->
+<script>
+// ── Steps definition ──────────────────────────────
+const steps = [
+  { nodes:['n-user'],       arrows:[],       phase:'phase1', title:'Step 1: User / Application Input',   body:'The flow begins when a user submits a prompt or an application makes an API call to an AI model. This is the entry point for both TrojAI DETECT (pre-deployment testing) and TrojAI DEFEND (runtime protection).' },
+  { nodes:['n-dataset'],    arrows:['a1'],   phase:'phase1', title:'Step 2: Dataset Registry',           body:'Datasets used for evaluation and red-teaming are curated in the Dataset Registry. Supports tabular, NLP, and generative AI data formats with full configuration (columns, labels, tokenizers, etc.).' },
+  { nodes:['n-model'],      arrows:['a2'],   phase:'phase1', title:'Step 3: Model Registry',             body:'All ML models under assessment are stored in the Model Registry — LLMs, NLP classifiers, tabular models. Models are wrapped uniformly so the DETECT engine can interface with them during pentests and audits.' },
+  { nodes:['n-pentest'],    arrows:['a3'],   phase:'phase2', title:'Step 4: Red-Team Pentesting (DETECT)', body:'TrojAI DETECT launches automated adversarial testing campaigns. For generative AI, it systematically probes the model with attack prompts designed to find jailbreaks, safety failures, prompt injection vulnerabilities, and harmful output generation.' },
+  { nodes:['n-attacks'],    arrows:['a4'],   phase:'phase2', title:'Step 5: Attack Libraries & Manipulations', body:'The attack engine draws from extensive libraries: character-based attacks, word-based perturbations, encoding manipulations (Base64, Unicode), prompt-injection templates, and custom attacks. Manipulations like misspelling and language translation increase coverage.' },
+  { nodes:['n-evaluators'], arrows:['a5'],   phase:'phase2', title:'Step 6: Output Evaluators',          body:'Automated judges score every model response for safety, correctness, and alignment. Supports LLM-as-judge (using a separate evaluator model) and classifier-based evaluation to quantify red-team success rates.' },
+  { nodes:['n-integrity'],  arrows:['a6'],   phase:'phase2', title:'Step 7: Integrity & Risk Audit',     body:'A comprehensive audit runs checks across four categories: Robustness (adversarial resilience), Explainability/Bias (fairness, feature importance), Security/Privacy (data leakage, membership inference), and Performance/Methodology (accuracy, data drift). Results feed into compliance reports.' },
+  { nodes:['n-policy'],     arrows:['a7'],   phase:'phase3', title:'Step 8: Firewall Policy (DEFEND)',    body:'In production, every request is routed to a Firewall Policy via its Client ID (x-eag-clientid header). The Policy contains an ordered list of Rule Groups and settings like block messages and model target. Types: Standard, MCP, and OpenAI Compliance.' },
+  { nodes:['n-rulegroup'],  arrows:['a8'],   phase:'phase3', title:'Step 9: Rule Groups',                body:'Rule Groups are reusable bundles of security rules. Example: a "Baseline Security" group containing Prompt Injection + PII Detection can be shared across every Policy. Edit once — all Policies pick up the change. Rule Groups run in order: critical checks first.' },
+  { nodes:['n-rules'],      arrows:['a9'],   phase:'phase3', title:'Step 10: Rules Engine',              body:'Individual rules execute within each Rule Group. Categories include: Adversarial Attacks (Prompt Injection, TrojGuard), Content Moderation (Harmful Output, BYO-LLM), PII Detection (5 variants), Data Leakage (Base64, Secrets, Source Code), DOS Protection (character/repetition limits), and Custom Governance policies.' },
+  { nodes:['n-action'],     arrows:['a10'],  phase:'phase4', title:'Step 11: Action Decision',           body:'Each rule evaluation results in an action: <strong>PASS</strong> (safe), <strong>FLAG</strong> (allow but log), <strong>BLOCK</strong> (stop the request/response), or <strong>REDACT</strong> (replace sensitive data and allow). If any rule blocks, subsequent Rule Groups for that direction are skipped.' },
+  { nodes:['n-explorer'],   arrows:['a11'],  phase:'phase4', title:'Step 12: Firewall Explorer',         body:'All events — PASS, FLAG, BLOCK, ERROR — are logged and visible in the Firewall Explorer dashboard. Security teams can filter by action type, time range, policy, and rule group to analyze threats, tune rules, and generate compliance reports.' },
+  { nodes:['n-extension'],  arrows:['a12'],  phase:'phase4', title:'Step 13: Browser Extension',         body:'The TrojAI LLM Monitor is a Chromium browser extension that applies firewall protection directly in the browser. Users interacting with LLMs (ChatGPT, etc.) get real-time protection without changing their workflow. Supports OIDC authentication.' },
+  { nodes:['n-metrics'],    arrows:['a13'],  phase:'phase4', title:'Step 14: Metrics & Observability',   body:'Prometheus-compatible metrics are exported for Grafana dashboards, alerting (PagerDuty, Slack), and SLA monitoring. Track block rates, latency percentiles, error rates, and top triggered rules across all policies.' },
+  { nodes:['n-output'],     arrows:['a14'],  phase:'phase5', title:'Step 15: Safe, Compliant Output',    body:'The verified, compliant response is returned to the user or calling application. It has been screened for prompt injection, PII, harmful content, policy violations, and data leakage — ensuring your AI system operates securely and responsibly.' },
+];
+
+let currentStep = -1;
+let timer = null;
+
+function getSpeed() { return parseInt(document.getElementById('speedRange').value); }
+
+function activateStep(i) {
+  if (i < 0 || i >= steps.length) return;
+  const s = steps[i];
+
+  // Deactivate previous active nodes → done
+  document.querySelectorAll('.node.active').forEach(n => { n.classList.remove('active'); n.classList.add('done'); });
+
+  // Activate current nodes
+  s.nodes.forEach(id => { const el = document.getElementById(id); el.classList.add('active'); el.classList.remove('done'); });
+
+  // Light arrows
+  s.arrows.forEach(id => document.getElementById(id)?.classList.add('lit'));
+
+  // Phase banners
+  document.querySelectorAll('.phase-banner').forEach(b => b.classList.remove('show'));
+  if (s.phase) document.getElementById(s.phase)?.classList.add('show');
+
+  // Description
+  document.getElementById('descTitle').innerHTML = s.title;
+  document.getElementById('descBody').innerHTML  = s.body;
+
+  // Step label
+  document.getElementById('stepLabel').innerHTML = `Step <strong>${i+1}</strong> of <strong>${steps.length}</strong>`;
+
+  // Scroll node into view
+  const firstNode = document.getElementById(s.nodes[0]);
+  firstNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  currentStep = i;
+}
+
+function startAnimation() {
+  if (timer) clearInterval(timer);
+  if (currentStep >= steps.length - 1) resetAnimation();
+  document.getElementById('playBtn').textContent = '⏸ Pause';
+  document.getElementById('playBtn').onclick = pauseAnimation;
+
+  timer = setInterval(() => {
+    if (currentStep >= steps.length - 1) { pauseAnimation(); return; }
+    activateStep(currentStep + 1);
+  }, getSpeed());
+
+  // Kick off first step immediately if at start
+  if (currentStep < 0) activateStep(0);
+}
+
+function pauseAnimation() {
+  clearInterval(timer); timer = null;
+  document.getElementById('playBtn').textContent = '▶ Resume';
+  document.getElementById('playBtn').onclick = startAnimation;
+}
+
+function resetAnimation() {
+  clearInterval(timer); timer = null; currentStep = -1;
+  document.querySelectorAll('.node').forEach(n => { n.classList.remove('active','done'); });
+  document.querySelectorAll('.arrow-right, .arrow-down').forEach(a => a.classList.remove('lit'));
+  document.querySelectorAll('.phase-banner').forEach(b => b.classList.remove('show'));
+  document.getElementById('descTitle').textContent = 'TrojAI Product Flow';
+  document.getElementById('descBody').innerHTML = 'Press <strong>Play Flow</strong> to walk through each step of the TrojAI platform — from input to secure output.';
+  document.getElementById('stepLabel').innerHTML = 'Click <strong>Play Flow</strong> to begin';
+  document.getElementById('playBtn').textContent = '▶ Play Flow';
+  document.getElementById('playBtn').onclick = startAnimation;
+}
+
+// ── Particle Background ────────────────────────────
+(function(){
+  const c = document.getElementById('particleBg');
+  const ctx = c.getContext('2d');
+  let w, h, particles = [];
+  function resize(){ w = c.width = window.innerWidth; h = c.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+
+  for(let i=0;i<60;i++) particles.push({
+    x: Math.random()*w, y: Math.random()*h,
+    r: Math.random()*1.8+.4,
+    dx: (Math.random()-.5)*.3, dy: (Math.random()-.5)*.3,
+    o: Math.random()*.35+.08
+  });
+
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p=>{
+      p.x += p.dx; p.y += p.dy;
+      if(p.x<0) p.x=w; if(p.x>w) p.x=0;
+      if(p.y<0) p.y=h; if(p.y>h) p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(22,163,65,${p.o})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
